@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDropzone } from 'react-dropzone';
 import { Upload, FileArchive, Play, Square, Download, Terminal, Trash2, Circle, Loader2 } from 'lucide-react';
-import { getWorkspace, uploadVersion, startSimulator, stopSimulator, getSimulatorStatus, getKubeconfigUrl, deleteVersion } from '../api/client';
+import { getWorkspace, uploadVersion, startSimulator, stopSimulator, getSimulatorStatus, getKubeconfigUrl, deleteVersion, getResourceHistory, type ResourceHistoryResult } from '../api/client';
 import type { Workspace } from '../types';
 
 export const WorkspaceDetail: React.FC = () => {
@@ -11,6 +11,23 @@ export const WorkspaceDetail: React.FC = () => {
   const [statuses, setStatuses] = useState<Record<string, { running: boolean; ready: boolean }>>({});
   const [loading, setLoading] = useState<Record<string, string | null>>({}); // versionID -> action ('start', 'stop', 'delete')
   const [isUploading, setIsUploading] = useState(false);
+  const [resourceQuery, setResourceQuery] = useState('');
+  const [historyResults, setHistoryResults] = useState<ResourceHistoryResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  const handleSearch = async () => {
+    if (!name || !resourceQuery.trim()) return;
+    setIsSearching(true);
+    try {
+      const results = await getResourceHistory(name, resourceQuery);
+      setHistoryResults(results);
+    } catch (error) {
+      console.error('Failed to search resource', error);
+      alert('Failed to search resource');
+    } finally {
+      setIsSearching(false);
+    }
+  };
 
   const loadWorkspace = useCallback(async () => {
     if (!name) return;
@@ -235,6 +252,65 @@ export const WorkspaceDetail: React.FC = () => {
             </li>
           )}
         </ul>
+      </div>
+
+      {/* Resource Search */}
+      <div className="bg-white shadow sm:rounded-lg p-6">
+        <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">Resource History Search</h3>
+        <div className="flex gap-4 mb-6">
+          <input
+            type="text"
+            value={resourceQuery}
+            onChange={(e) => setResourceQuery(e.target.value)}
+            placeholder="e.g. pod/my-pod or namespace/pod/my-pod"
+            className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2"
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+          />
+          <button
+            onClick={handleSearch}
+            disabled={isSearching || !resourceQuery.trim()}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+          >
+            {isSearching ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Search
+          </button>
+        </div>
+
+        {historyResults.length > 0 && (
+          <div className="space-y-4">
+            {historyResults.map((result) => (
+              <div key={result.versionID} className="border rounded-md overflow-hidden">
+                <div className={`px-4 py-2 bg-gray-50 border-b flex justify-between items-center ${
+                  result.status === 'found' ? 'border-green-200 bg-green-50' : 
+                  result.status === 'not_found' ? 'border-yellow-200 bg-yellow-50' : 
+                  'border-gray-200'
+                }`}>
+                  <span className="font-medium text-sm text-gray-700">Version: {result.versionID}</span>
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    result.status === 'found' ? 'bg-green-100 text-green-800' :
+                    result.status === 'not_found' ? 'bg-yellow-100 text-yellow-800' :
+                    result.status === 'stopped' ? 'bg-gray-100 text-gray-800' :
+                    'bg-red-100 text-red-800'
+                  }`}>
+                    {result.status === 'found' ? 'Found' :
+                     result.status === 'not_found' ? 'Not Found' :
+                     result.status === 'stopped' ? 'Container Stopped' : 'Error'}
+                  </span>
+                </div>
+                {result.status === 'found' && (
+                  <pre className="p-4 bg-gray-900 text-gray-100 text-xs overflow-x-auto font-mono">
+                    {result.content}
+                  </pre>
+                )}
+                {result.error && (
+                  <div className="p-4 text-sm text-red-600 bg-red-50">
+                    {result.error}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -48,6 +48,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/workspaces/{name}/versions/{versionID}/status", s.handleGetSimulatorStatus)
 	mux.HandleFunc("GET /api/workspaces/{name}/versions/{versionID}/kubeconfig", s.handleGetKubeconfig)
 	mux.HandleFunc("DELETE /api/workspaces/{name}/versions/{versionID}", s.handleDeleteVersion)
+	mux.HandleFunc("POST /api/workspaces/{name}/resource-history", s.handleGetResourceHistory)
 }
 
 func (s *Server) handleListWorkspaces(w http.ResponseWriter, r *http.Request) {
@@ -527,4 +528,87 @@ func (s *Server) monitorReadyState(workspaceName, versionID, instanceName string
 			fmt.Printf("Monitor ready state failed: %v\n", err)
 		}
 	}()
+}
+
+func (s *Server) handleGetResourceHistory(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	var req struct {
+		Resource string `json:"resource"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	ws, err := s.store.GetWorkspace(name)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	type VersionResult struct {
+		VersionID string `json:"versionID"`
+		Content   string `json:"content"`
+		Error     string `json:"error,omitempty"`
+		Status    string `json:"status"` // "found", "not_found", "stopped", "error"
+	}
+
+	var results []VersionResult
+
+	for _, v := range ws.Versions {
+		instanceName := fmt.Sprintf("%s-%s", name, v.ID)
+
+		// Check if container is running
+		containers, err := s.docker.FindRunningContainer(instanceName)
+		if err != nil || len(containers) == 0 {
+			results = append(results, VersionResult{
+				VersionID: v.ID,
+				Status:    "stopped",
+				Error:     "Container not running",
+			})
+			continue
+		}
+
+		// Execute kubectl get <resource> -o yaml
+		// Support format: namespace/type/name or type/name
+		parts := strings.Split(req.Resource, "/")
+		var cmd []string
+		if len(parts) == 3 {
+			namespace := parts[0]
+			resourceType := parts[1]
+			resourceName := parts[2]
+			cmd = []string{"kubectl", "get", resourceType, resourceName, "-n", namespace, "-o", "yaml"}
+		} else {
+			cmd = []string{"kubectl", "get", req.Resource, "-o", "yaml"}
+		}
+		env := []string{"KUBECONFIG=/root/.sim/admin.kubeconfig"}
+		stdout, stderr, err := s.docker.ExecContainer(instanceName, cmd, env)
+
+		if err != nil {
+			results = append(results, VersionResult{
+				VersionID: v.ID,
+				Status:    "error",
+				Error:     err.Error(),
+			})
+			continue
+		}
+
+		if stderr != "" {
+			results = append(results, VersionResult{
+				VersionID: v.ID,
+				Status:    "not_found",
+				Error:     stderr,
+			})
+			continue
+		}
+
+		results = append(results, VersionResult{
+			VersionID: v.ID,
+			Status:    "found",
+			Content:   stdout,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(results)
 }

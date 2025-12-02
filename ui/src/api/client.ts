@@ -55,3 +55,15 @@ export const getKubeconfigUrl = (workspaceName: string, versionID: string) => {
 export const deleteVersion = async (workspaceName: string, versionID: string) => {
   await client.delete(`/workspaces/${workspaceName}/versions/${versionID}`);
 };
+
+export interface ResourceHistoryResult {
+  versionID: string;
+  content: string;
+  error?: string;
+  status: 'found' | 'not_found' | 'stopped' | 'error';
+}
+
+export const getResourceHistory = async (workspaceName: string, resource: string) => {
+  const response = await client.post<ResourceHistoryResult[]>(`/workspaces/${workspaceName}/resource-history`, { resource });
+  return response.data;
+};
