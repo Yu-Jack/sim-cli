@@ -11,7 +11,7 @@ export const Layout: React.FC = () => {
             <div className="flex">
               <Link to="/" className="flex-shrink-0 flex items-center text-indigo-600 font-bold text-xl">
                 <LayoutDashboard className="w-6 h-6 mr-2" />
-                K8s Diagnostic
+                Harvester Diagnostic
               </Link>
             </div>
           </div>
