@@ -3,9 +3,10 @@ package model
 import "time"
 
 type Workspace struct {
-	Name      string    `json:"name"`
-	CreatedAt time.Time `json:"createdAt"`
-	Versions  []Version `json:"versions"`
+	Name        string    `json:"name"`
+	DisplayName string    `json:"displayName"`
+	CreatedAt   time.Time `json:"createdAt"`
+	Versions    []Version `json:"versions"`
 }
 
 type Version struct {

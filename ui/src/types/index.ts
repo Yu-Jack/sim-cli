@@ -8,6 +8,7 @@ export interface Version {
 
 export interface Workspace {
   name: string;
+  displayName?: string;
   createdAt: string;
   versions: Version[];
 }

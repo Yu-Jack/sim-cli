@@ -30,6 +30,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/workspaces", s.handleListWorkspaces)
 	mux.HandleFunc("POST /api/workspaces", s.handleCreateWorkspace)
 	mux.HandleFunc("GET /api/workspaces/{name}", s.handleGetWorkspace)
+	mux.HandleFunc("PUT /api/workspaces/{name}", s.handleRenameWorkspace)
 	mux.HandleFunc("POST /api/workspaces/{name}/resource-history", s.handleGetResourceHistory)
 	mux.HandleFunc("GET /api/workspaces/{name}/namespaces", s.handleGetNamespaces)
 	mux.HandleFunc("GET /api/workspaces/{name}/resource-types", s.handleGetResourceTypes)

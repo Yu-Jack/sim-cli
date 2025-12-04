@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { Upload, List, Search } from 'lucide-react';
-import { getWorkspace, getSimulatorStatus } from '../api/client';
+import { Upload, List, Search, Pencil } from 'lucide-react';
+import { getWorkspace, getSimulatorStatus, renameWorkspace } from '../api/client';
 import type { Workspace } from '../types';
 import { UploadArea } from '../components/workspace/UploadArea';
+import { getWorkspaceDisplayName, getWorkspaceEditableName } from '../utils/workspace';
 import { VersionList } from '../components/workspace/VersionList';
 import { ResourceHistory } from '../components/workspace/ResourceHistory';
 
@@ -14,6 +15,10 @@ export const WorkspaceDetail: React.FC = () => {
   const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [statuses, setStatuses] = useState<Record<string, { running: boolean; ready: boolean }>>({});
   const [activeTab, setActiveTab] = useState<Tab>('versions');
+
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [showRenameModal, setShowRenameModal] = useState(false);
 
   const loadWorkspace = useCallback(async () => {
     if (!name) return;
@@ -57,6 +62,23 @@ export const WorkspaceDetail: React.FC = () => {
     }
   }, [workspace, loadStatuses]);
 
+  const handleRenameSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!workspace || !name || !renameValue.trim() || renameValue === getWorkspaceEditableName(workspace)) return;
+    
+    setIsRenaming(true);
+    try {
+      await renameWorkspace(name, renameValue);
+      setShowRenameModal(false);
+      await loadWorkspace();
+    } catch (err) {
+        console.error(err);
+        alert('Failed to rename workspace');
+    } finally {
+        setIsRenaming(false);
+    }
+  };
+
   if (!workspace || !name) return <div>Loading...</div>;
 
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
@@ -68,8 +90,56 @@ export const WorkspaceDetail: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-gray-900">Workspace: {workspace.name}</h1>
+        <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-semibold text-gray-900">
+              Workspace: {getWorkspaceDisplayName(workspace)}
+            </h1>
+            <button 
+                onClick={() => {
+                    setRenameValue(getWorkspaceEditableName(workspace));
+                    setShowRenameModal(true);
+                }}
+                className="p-1 text-gray-400 hover:text-indigo-600 transition-colors"
+            >
+                <Pencil className="h-5 w-5" />
+            </button>
+        </div>
       </div>
+
+      {showRenameModal && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Rename Workspace</h3>
+            <form onSubmit={handleRenameSubmit}>
+              <input
+                type="text"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2 mb-4"
+                autoFocus
+                disabled={isRenaming}
+              />
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowRenameModal(false)}
+                  disabled={isRenaming}
+                  className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isRenaming}
+                  className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                >
+                  {isRenaming ? 'Renaming...' : 'Rename'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8" aria-label="Tabs">

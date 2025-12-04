@@ -38,9 +38,10 @@ func (s *Server) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ws := model.Workspace{
-		Name:      req.Name,
-		CreatedAt: time.Now(),
-		Versions:  []model.Version{},
+		Name:        req.Name,
+		DisplayName: req.Name,
+		CreatedAt:   time.Now(),
+		Versions:    []model.Version{},
 	}
 
 	if err := s.store.CreateWorkspace(ws); err != nil {
@@ -55,6 +56,37 @@ func (s *Server) handleCreateWorkspace(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(ws)
+}
+
+func (s *Server) handleRenameWorkspace(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	newDisplayName := req.Name
+	if strings.TrimSpace(newDisplayName) == "" {
+		http.Error(w, "New workspace name cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	ws, err := s.store.GetWorkspace(name)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	ws.DisplayName = newDisplayName
+	if err := s.store.UpdateWorkspace(*ws); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) handleGetWorkspace(w http.ResponseWriter, r *http.Request) {

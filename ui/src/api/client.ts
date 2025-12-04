@@ -15,6 +15,10 @@ export const createWorkspace = async (name: string) => {
   return response.data;
 };
 
+export const renameWorkspace = async (oldName: string, newName: string) => {
+  await client.put(`/workspaces/${oldName}`, { name: newName });
+};
+
 export const getWorkspace = async (name: string) => {
   const response = await client.get<Workspace>(`/workspaces/${name}`);
   return response.data;

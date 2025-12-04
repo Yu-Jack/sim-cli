@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { AxiosError } from 'axios';
-import { Plus, Folder } from 'lucide-react';
-import { getWorkspaces, createWorkspace } from '../api/client';
+import { Plus, Folder, Pencil } from 'lucide-react';
+import { getWorkspaces, createWorkspace, renameWorkspace } from '../api/client';
 import type { Workspace } from '../types';
+import { getWorkspaceDisplayName, getWorkspaceEditableName } from '../utils/workspace';
 
 export const WorkspaceList: React.FC = () => {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
@@ -11,6 +12,10 @@ export const WorkspaceList: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newWorkspaceName, setNewWorkspaceName] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [isRenaming, setIsRenaming] = useState(false);
 
   const loadWorkspaces = useCallback(async () => {
     try {
@@ -48,6 +53,25 @@ export const WorkspaceList: React.FC = () => {
       }
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleRenameSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingWorkspace || !renameValue.trim() || renameValue === getWorkspaceEditableName(editingWorkspace)) return;
+    
+    setIsRenaming(true);
+    try {
+      await renameWorkspace(editingWorkspace.name, renameValue);
+      setEditingWorkspace(null);
+      setRenameValue('');
+      await loadWorkspaces();
+    } catch (err) {
+        const error = err as AxiosError;
+        console.error('Failed to rename workspace', error);
+        alert('Failed to rename workspace');
+    } finally {
+        setIsRenaming(false);
     }
   };
 
@@ -102,40 +126,87 @@ export const WorkspaceList: React.FC = () => {
         </div>
       )}
 
+      {editingWorkspace && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Rename Workspace</h3>
+            <form onSubmit={handleRenameSubmit}>
+              <input
+                type="text"
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm border p-2 mb-4"
+                autoFocus
+                disabled={isRenaming}
+              />
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingWorkspace(null)}
+                  disabled={isRenaming}
+                  className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isRenaming}
+                  className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                >
+                  {isRenaming ? 'Renaming...' : 'Rename'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {workspaces.map((ws) => (
-          <Link
-            key={ws.name}
-            to={`/workspaces/${ws.name}`}
-            className="block hover:shadow-lg transition-shadow duration-200"
-          >
-            <div className="bg-white overflow-hidden shadow rounded-lg">
-              <div className="px-4 py-5 sm:p-6">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0 bg-indigo-500 rounded-md p-3">
-                    <Folder className="h-6 w-6 text-white" />
+          <div key={ws.name} className="relative group">
+            <Link
+              to={`/workspaces/${ws.name}`}
+              className="block hover:shadow-lg transition-shadow duration-200"
+            >
+              <div className="bg-white overflow-hidden shadow rounded-lg">
+                <div className="px-4 py-5 sm:p-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 bg-indigo-500 rounded-md p-3">
+                      <Folder className="h-6 w-6 text-white" />
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dt className="text-sm font-medium text-gray-500 truncate">
+                        {getWorkspaceDisplayName(ws)}
+                      </dt>
+                      <dd className="flex items-baseline">
+                        <div className="text-2xl font-semibold text-gray-900">
+                          {ws.versions?.length || 0} Versions
+                        </div>
+                      </dd>
+                    </div>
                   </div>
-                  <div className="ml-5 w-0 flex-1">
-                    <dt className="text-sm font-medium text-gray-500 truncate">
-                      {ws.name}
-                    </dt>
-                    <dd className="flex items-baseline">
-                      <div className="text-2xl font-semibold text-gray-900">
-                        {ws.versions?.length || 0} Versions
-                      </div>
-                    </dd>
+                </div>
+                <div className="bg-gray-50 px-4 py-4 sm:px-6">
+                  <div className="text-sm">
+                    <span className="text-gray-500">
+                      Created {new Date(ws.createdAt).toLocaleDateString()}
+                    </span>
                   </div>
                 </div>
               </div>
-              <div className="bg-gray-50 px-4 py-4 sm:px-6">
-                <div className="text-sm">
-                  <span className="text-gray-500">
-                    Created {new Date(ws.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </Link>
+            </Link>
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setEditingWorkspace(ws);
+                setRenameValue(getWorkspaceEditableName(ws));
+              }}
+              className="absolute top-2 right-2 p-2 text-gray-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity bg-white rounded-full shadow-sm"
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
+          </div>
         ))}
       </div>
     </div>
