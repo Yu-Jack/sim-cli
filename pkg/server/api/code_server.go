@@ -130,7 +130,7 @@ func (s *Server) handleStartCodeServer(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	// defer os.RemoveAll(tempRoot)
+	defer os.RemoveAll(tempRoot)
 
 	extractDirName := fmt.Sprintf("%s-%s", name, versionID)
 	extractDirPath := filepath.Join(tempRoot, extractDirName)
