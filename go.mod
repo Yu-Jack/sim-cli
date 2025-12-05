@@ -1,4 +1,4 @@
-module github.com/ibrokethecloud/sim-cli
+module github.com/Yu-Jack/sim-gui
 
 go 1.22.5
 

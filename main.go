@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/ibrokethecloud/sim-cli/pkg/cmd"
+	"github.com/Yu-Jack/sim-gui/pkg/cmd"
 )
 
 func main() {

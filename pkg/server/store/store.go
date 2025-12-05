@@ -1,6 +1,6 @@
 package store
 
-import "github.com/ibrokethecloud/sim-cli/pkg/server/model"
+import "github.com/Yu-Jack/sim-gui/pkg/server/model"
 
 type Storage interface {
 	CreateWorkspace(workspace model.Workspace) error

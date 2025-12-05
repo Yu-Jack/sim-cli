@@ -1,105 +1,138 @@
-# sim-cli
+# sim-gui
 
-`sim-cli` is a utility to help manage multiple instances of the rancher support-bundle-kit simulator.
+A web-based UI for managing and exploring Harvester support bundles. This application provides an intuitive interface to upload, analyze, and navigate through support bundle contents.
 
-Currently, the easiest way to run simulator instances is to run the binary locally. Due to port mapping requirements
-it is hard to run multiple instances of the simulator on the same host.
+## Features
 
-`sim-cli` attempts to bridge this gap by allowing a user to run and load multiple support bundles in containers.
+- Upload and manage multiple support bundle workspaces
+- Browse support bundle structure (logs, yamls, nodes, etc.)
+- View resource history and changes
+- Interactive file explorer
+- RESTful API backend
 
-The cli does this by building a custom image based on `rancher/support-bundle-kit:master-head`, which has been layered
-with the contents of the support bundle itself. It then runs this custom image with specific command arguments to trigger
-the processing of the packaged support bundle.
+## Prerequisites
 
-## To build
-`make` will leverage dapper and build and drop the binary in `bin` directory of the project.
+- Go 1.22.5 or later
+- Node.js 22.x
+- Docker (for containerized builds)
 
-## Usage
-```markdown
-sim-cli is a utility to help create and manage multiple support bundle kid instances in a docker container. 
-This allows users to have multiple copies of support bundle kit running on your desktop to allow debugging of harvester issues
+## Building
 
-Usage:
-  sim-cli [flags]
-  sim-cli [command]
+### Quick Build
 
-Available Commands:
-  completion  Generate the autocompletion script for the specified shell
-  create      create a support bundle kit simulator instance
-  delete      delete a support bundle kit simulator instance
-  export      export kubeconfig for an existing simulator instance
-  help        Help about any command
-  list        list existing simulator instances
+Build both the UI and the Go binary:
 
-Flags:
-  -h, --help      help for sim-cli
-      --verbose   verbose output
-
-
+```bash
+make build
 ```
 
-### Creating a new instance
-```
-sim-cli create --name issue-7007 --bundle-path $HOME/Downloads/supportbundle_207d0deb-1cf3-46c8-aedb-fd3d28d04530_2024-09-04T07-00-02Z.zip
-```
-will create a new simulator instance by packaging the zip file of the support bundle into a base image of support-bundle-kit.
-It will run a new instance using the newly create image, and export the kubeconfig from the running instance and merge
-it in to the default simulator config file `$HOME/.sim/admin.kubeconfig`
-```markdown
-sim-cli create --name issue-7007 --bundle-path $HOME/Downloads/supportbundle_207d0deb-1cf3-46c8-aedb-fd3d28d04530_2024-09-04T07-00-02Z.zip
-INFO[0001] Step 1/4 : FROM rancher/support-bundle-kit:dev 
-INFO[0001]  ---> d58fca6009e7                           
-INFO[0001] Step 2/4 : EXPOSE 6443/tcp                   
-INFO[0001]  ---> Using cache                            
-INFO[0001]  ---> 7ef1ef326246                           
-INFO[0001] Step 3/4 : COPY bundle /bundle               
-INFO[0001]  ---> Using cache                            
-INFO[0001]  ---> 7a3519649d88                           
-INFO[0001] Step 4/4 : LABEL harvesterhci.io/bundle-name=issue-7007 
-INFO[0001]  ---> Running in 5bd40db14d27                
-INFO[0001]  ---> 61082bce11ad                           
-INFO[0001] Successfully built 61082bce11ad              
-INFO[0001] Successfully tagged sim-cli-managed:issue-7007 
-INFO[0001] simulator instance exposed on port 32773      name=issue-7007
-INFO[0011] exporting kubeconfig for instance issue-7007 
-INFO[0011] exported kubeconfig to context issue-7007  
+This will:
+1. Install UI dependencies
+2. Build the UI assets
+3. Copy built assets to `pkg/server/static/`
+4. Build the Go binary for multiple platforms (linux-amd64, linux-arm64, darwin-arm64)
+5. Output binaries to `bin/` directory
+
+### Manual Build
+
+Build UI only:
+```bash
+cd ui
+npm install
+npm run build
 ```
 
-Users can use the newly added context to access the simulator instance using any tooling used to access a k8s cluster.
-
-### Listing instances
-`sim-cli list` will list all running instances of simulator along with details of related image, support bundle file
-and port this instance is exposed on
-```markdown
-sim-cli list
-+---------------+---------------------------------------------+-------------------------------+------------------+-----------------+
-|          name |                                  bundlePath |                         image |           status |    exposed port |
-+===============+=============================================+===============================+==================+=================+
-|    issue-7007 |    /home/random/Downloads/supportbundle_207 |    sim-cli-managed:issue-7007 |    Up 40 minutes |           32770 |
-|               |    d0deb-1cf3-46c8-aedb-fd3d28d04530_2024-0 |                               |                  |                 |
-|               |                          9-04T07-00-02Z.zip |                               |                  |                 |
-+---------------+---------------------------------------------+-------------------------------+------------------+-----------------+
+Build Go binary only:
+```bash
+go build -o bin/sim-gui main.go
 ```
 
+## Development
 
-### Deleting an instance
-`sim-cli delete --name issue-7007` will find the associated container and image for instance, stop the container, 
-remove the container and associated image. It will also remove the context associated for the instance from the kubeconfig
+### Backend Development
 
-```markdown
-sim-cli delete --name issue-7007
-INFO[0000] removing instance issue-7007                 
-INFO[0000] removing image for instance issue-7007       
-INFO[0000] removed image: { sim-cli-managed:issue-7007} 
-INFO[0000] removed image: {sha256:4cbca2ba8ec2626ba904b6d3b6c9570e3734a74f4d41f6457f14778497f9efe9 } 
-INFO[0000] removing context for instance issue-7007     
+Run the server without serving static UI files (for frontend development):
+
+```bash
+go run main.go server --dev
 ```
 
-### Export kubeconfig for an instance
-`sim-cli export --name issue-7007` can be used to export the kubeconfig for an already running instance.
-The export config will be added as a new context into `$HOME/.sim/admin.kubeconfig`
-```markdown
-sim-cli export --name issue-7007
-INFO[0000] exporting kubeconfig for instance issue-7007 
-INFO[0000] exported kubeconfig to context issue-7007    
+Options:
+- `--addr`: Server address (default: `:8080`)
+- `--data-dir`: Directory to store data (default: `./data`)
+- `--dev`: Enable dev mode (do not serve static files)
+
+### Frontend Development
+
+Start the Vite dev server for hot-reload development:
+
+```bash
+cd ui
+npm run dev
 ```
+
+The UI will be available at `http://localhost:5173` and will proxy API requests to `http://localhost:8080`.
+
+Make sure the backend is running in dev mode:
+```bash
+go run main.go server --dev
+```
+
+### Full Stack Development Workflow
+
+1. Terminal 1: Start backend in dev mode
+   ```bash
+   go run main.go server --dev
+   ```
+
+2. Terminal 2: Start frontend dev server
+   ```bash
+   cd ui
+   npm run dev
+   ```
+
+3. Access the application at `http://localhost:5173`
+
+## Running in Production
+
+After building, run the binary with embedded UI:
+
+```bash
+./bin/sim-gui-linux-amd64 server
+```
+
+The server will serve both the API and the UI at `http://localhost:8080`.
+
+## Project Structure
+
+```
+.
+├── pkg/
+│   ├── server/          # HTTP server and API handlers
+│   │   ├── api/         # API routes and handlers
+│   │   ├── model/       # Data models
+│   │   ├── store/       # Data storage layer
+│   │   └── static/      # Embedded UI assets (generated)
+│   ├── docker/          # Docker client utilities
+│   └── kubeconfig/      # Kubeconfig utilities
+├── ui/                  # React frontend application
+│   ├── src/
+│   │   ├── api/         # API client
+│   │   ├── components/  # React components
+│   │   ├── pages/       # Page components
+│   │   └── types/       # TypeScript types
+│   └── dist/            # Built UI assets (generated)
+└── scripts/             # Build and CI scripts
+```
+
+## API Endpoints
+
+- `GET /api/workspaces` - List all workspaces
+- `POST /api/workspaces` - Create a new workspace
+- `GET /api/workspaces/{name}` - Get workspace details
+- `DELETE /api/workspaces/{name}` - Delete a workspace
+- `PUT /api/workspaces/{name}` - Rename a workspace
+- `POST /api/workspaces/{name}/resource-history` - Get resource history
+- `GET /api/workspaces/{name}/namespaces` - List namespaces
+- `GET /api/workspaces/{name}/resource-types` - List resource types
+- `GET /api/workspaces/{name}/resources` - Get resources

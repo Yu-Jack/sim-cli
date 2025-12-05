@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/ibrokethecloud/sim-cli/pkg/docker"
-	"github.com/ibrokethecloud/sim-cli/pkg/server/store"
+	"github.com/Yu-Jack/sim-gui/pkg/docker"
+	"github.com/Yu-Jack/sim-gui/pkg/server/store"
 )
 
 type Server struct {

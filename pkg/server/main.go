@@ -1,14 +1,21 @@
 package server
 
 import (
+	"embed"
+	"io/fs"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 
-	"github.com/ibrokethecloud/sim-cli/pkg/server/api"
-	jsonstore "github.com/ibrokethecloud/sim-cli/pkg/server/store/json"
+	"github.com/Yu-Jack/sim-gui/pkg/server/api"
+	jsonstore "github.com/Yu-Jack/sim-gui/pkg/server/store/json"
 )
 
-func Run(addr string, dataDir string) error {
+//go:embed all:static
+var content embed.FS
+
+func Run(addr string, dataDir string, dev bool) error {
 	store, err := jsonstore.NewJSONStore(dataDir + "/data.json")
 
 	if err != nil {
@@ -22,8 +29,49 @@ func Run(addr string, dataDir string) error {
 	mux := http.NewServeMux()
 	srv.RegisterRoutes(mux)
 
-	log.Printf("Server listening on %s", addr)
+	if !dev {
+		if err := registerUIHandler(mux); err != nil {
+			return err
+		}
+	}
+
+	log.Printf("Server listening on http://localhost%s", addr)
 	return http.ListenAndServe(addr, enableCors(mux))
+}
+
+func registerUIHandler(mux *http.ServeMux) error {
+	// Serve UI
+	assetsFS, err := fs.Sub(content, "static")
+	if err != nil {
+		return err
+	}
+
+	fileServer := http.FileServer(http.FS(assetsFS))
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api") {
+			http.NotFound(w, r)
+			return
+		}
+
+		// Check if the file exists in the assets
+		path := strings.TrimPrefix(r.URL.Path, "/")
+		if path == "" {
+			path = "index.html"
+		}
+
+		_, err := assetsFS.Open(path)
+		if os.IsNotExist(err) {
+			// Serve index.html for SPA routing
+			r.URL.Path = "/"
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+
+		fileServer.ServeHTTP(w, r)
+	})
+
+	return nil
 }
 
 func enableCors(next http.Handler) http.Handler {

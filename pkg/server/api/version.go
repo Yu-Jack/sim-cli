@@ -10,9 +10,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/ibrokethecloud/sim-cli/pkg/kubeconfig"
-	"github.com/ibrokethecloud/sim-cli/pkg/server/model"
-	"github.com/ibrokethecloud/sim-cli/pkg/server/utils"
+	"github.com/Yu-Jack/sim-gui/pkg/kubeconfig"
+	"github.com/Yu-Jack/sim-gui/pkg/server/model"
+	"github.com/Yu-Jack/sim-gui/pkg/server/utils"
 	"k8s.io/client-go/tools/clientcmd"
 )
 

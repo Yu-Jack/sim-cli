@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ibrokethecloud/sim-cli/pkg/docker"
-	"github.com/ibrokethecloud/sim-cli/pkg/server/model"
+	"github.com/Yu-Jack/sim-gui/pkg/docker"
+	"github.com/Yu-Jack/sim-gui/pkg/server/model"
 )
 
 func Unzip(src, dest string) error {

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/ibrokethecloud/sim-cli/pkg/server/model"
+	"github.com/Yu-Jack/sim-gui/pkg/server/model"
 )
 
 type JSONStore struct {

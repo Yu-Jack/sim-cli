@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ibrokethecloud/sim-cli/pkg/kubeconfig"
+	"github.com/Yu-Jack/sim-gui/pkg/kubeconfig"
 	"github.com/sirupsen/logrus"
 )
 

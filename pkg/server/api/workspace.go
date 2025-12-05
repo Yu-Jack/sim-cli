@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ibrokethecloud/sim-cli/pkg/server/model"
-	"github.com/ibrokethecloud/sim-cli/pkg/server/utils"
+	"github.com/Yu-Jack/sim-gui/pkg/server/model"
+	"github.com/Yu-Jack/sim-gui/pkg/server/utils"
 )
 
 func (s *Server) handleListWorkspaces(w http.ResponseWriter, r *http.Request) {
